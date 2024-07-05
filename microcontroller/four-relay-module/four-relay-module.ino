@@ -1,3 +1,15 @@
+// Mendefinisikan library yang diperlukan
+#include <SoftwareSerial.h>
+#include <stdlib.h>
+
+unsigned char check_connection = 0; // variabel yang digunakan untuk memeriksa status koneksi WiFi
+unsigned char times_check = 0;      // variabel counter yang digunakan untuk menentukan apakah koneksi akan dilakukan kembali
+
+/*
+ * Susunan parameternya yakni RX, TX mengikuti RX, TX di modul ESP8266
+ */
+SoftwareSerial ESP8266(2, 3);
+
 // Definisikan pin yang terhubung ke relay
 const int relayPin0 = 8;
 const int relayPin1 = 9;
