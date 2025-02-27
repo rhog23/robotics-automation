@@ -4,6 +4,7 @@ import struct
 import base64
 import time
 import cv2
+import numpy as np
 
 picam2 = Picamera2()
 config = picam2.create_video_configuration(
@@ -35,11 +36,12 @@ try:
             break
 
         # raw_data = frame.tobytes()
-        encoded_data = cv2.imencode(frame.data)
+        encoded_data = np.array(cv2.imencode(".png", frame.data))
+        byte_encode = encoded_data.tobytes()
         # message_size = struct.pack("L", len(encoded_data))
 
         # client_socket.sendall(message_size + encoded_data)
-        client_socket.sendall(encoded_data)
+        client_socket.sendall(byte_encode)
 
         print("Frame sent successfully")
         time.sleep(0.1)
