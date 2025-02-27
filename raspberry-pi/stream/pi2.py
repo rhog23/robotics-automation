@@ -7,7 +7,10 @@ app = Flask(__name__)
 
 # Initialize PiCamera2
 camera = Picamera2()
-camera.configure(camera.create_preview_configuration())
+config = camera.create_video_configuration(
+    main={"size": (640, 480), "format": "RGB888"}
+)
+camera.configure(config)
 camera.start()
 
 
