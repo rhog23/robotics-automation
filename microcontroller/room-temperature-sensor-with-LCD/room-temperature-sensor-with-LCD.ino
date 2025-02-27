@@ -10,27 +10,30 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-void setup() {
+void setup()
+{
   lcd.begin(16, 2);
   dht.begin();
-  
+
   lcd.setCursor(0, 0);
   lcd.print("Suhu: ");
   lcd.setCursor(0, 1);
   lcd.print("Kelembapan: ");
-  
+
   Serial.begin(9600);
 }
 
-void loop() {
+void loop()
+{
   delay(sensor_delay); // Tunggu 2 detik antara pembacaan sensor
 
   // Membaca suhu dan kelembapan
   float h = dht.readHumidity();
   float t = dht.readTemperature();
-  
+
   // Cek apakah pembacaan gagal
-  if (isnan(h) || isnan(t)) {
+  if (isnan(h) || isnan(t))
+  {
     Serial.println("Gagal membaca dari sensor DHT!");
     return;
   }
@@ -47,7 +50,7 @@ void loop() {
   lcd.setCursor(6, 0);
   lcd.print(t);
   lcd.print(" *C  ");
-  
+
   // Menampilkan kelembapan di LCD
   lcd.setCursor(12, 1);
   lcd.print(h);
