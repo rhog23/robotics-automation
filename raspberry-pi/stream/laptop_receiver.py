@@ -3,19 +3,20 @@ import gradio as gr
 import numpy as np
 import urllib.request
 from ultralytics import YOLO
+import time
 
 # Load YOLOv11 model (nano version)
-model = YOLO("yolov11n.pt")
+model = YOLO("yolo11n.pt")
 print("YOLOv11 model loaded successfully")
 
 
 def process_frame(frame):
-    # Resize frame to reduce inference time
-    small_frame = cv2.resize(frame, (320, 240))  # Half the original 640x480
-    results = model(small_frame, verbose=False)[0]  # Suppress verbose output
+    # Resize for faster inference
+    small_frame = cv2.resize(frame, (320, 240))
+    results = model(small_frame, verbose=False)[0]
     annotated_frame = results.plot()
-    # Resize back to original size for display
-    annotated_frame = cv2.resize(annotated_frame, (640, 480))
+    # Resize back for display
+    # return cv2.resize(annotated_frame, (640, 480))
     return annotated_frame
 
 
@@ -23,9 +24,10 @@ def video_stream():
     url = "http://192.168.137.110:5000/video"
     stream = urllib.request.urlopen(url)
     bytes_data = b""
+    frame_count = 0
 
     while True:
-        bytes_data += stream.read(4096)  # Increase buffer size from 1024
+        bytes_data += stream.read(4096)
         start = bytes_data.find(b"\xff\xd8")
         end = bytes_data.find(b"\xff\xd9")
         if start != -1 and end != -1:
@@ -36,9 +38,28 @@ def video_stream():
             if frame is None:
                 continue
 
-            annotated_frame = process_frame(frame)
+            # Skip every other frame to reduce load
+            frame_count += 1
+            if frame_count % 2 == 0:  # Process every 2nd frame
+                annotated_frame = process_frame(frame)
+            else:
+                annotated_frame = frame  # Pass raw frame
+
+            # Log FPS
+            current_time = time.time()
+            fps = (
+                1 / (current_time - video_stream.last_time)
+                if hasattr(video_stream, "last_time")
+                else 0
+            )
+            video_stream.last_time = current_time
+            print(f"FPS: {fps:.2f}")
+
             yield annotated_frame
 
+
+# Initialize last_time
+video_stream.last_time = time.time()
 
 interface = gr.Interface(
     fn=video_stream,
@@ -46,12 +67,6 @@ interface = gr.Interface(
     outputs=gr.Image(streaming=True),
     live=True,
     title="Raspberry Pi 4 YOLOv11 Object Detection",
-    _js="""() => {
-        // Increase Gradio refresh rate
-        setInterval(() => {
-            document.querySelector('img').src = document.querySelector('img').src;
-        }, 100);  // Refresh every 100ms
-    }""",
 )
 
 interface.launch(server_name="0.0.0.0", server_port=7860, share=False)
