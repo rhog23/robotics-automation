@@ -43,7 +43,7 @@ try:
         client_socket.sendall(encoded_data)
 
         print("Frame sent successfully")
-        time.sleep(0.1)
+        time.sleep(5)
 
 except Exception as e:
     print(f"Error occurred: {e}")
