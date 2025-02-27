@@ -5,7 +5,9 @@ import base64
 import time
 
 picam2 = Picamera2()
-config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
+config = picam2.create_video_configuration(
+    main={"size": (640, 480), "format": "RGB888"}
+)
 picam2.configure(config)
 picam2.start()
 print("Camera started successfully")
@@ -30,13 +32,14 @@ try:
         if frame is None or frame.size == 0:
             print("Error: Invalid frame captured")
             break
-        
-        raw_data = frame.tobytes()
-        encoded_data = base64.b64encode(raw_data)
-        message_size = struct.pack("L", len(encoded_data))
-        print(f"Sending frame, raw size: {len(raw_data)}, encoded size: {len(encoded_data)}, first 10 encoded bytes: {encoded_data[:10]}")
 
-        client_socket.sendall(message_size + encoded_data)
+        # raw_data = frame.tobytes()
+        encoded_data = base64.b64encode(frame)
+        # message_size = struct.pack("L", len(encoded_data))
+
+        # client_socket.sendall(message_size + encoded_data)
+        client_socket.sendall(encoded_data)
+
         print("Frame sent successfully")
         time.sleep(0.1)
 
