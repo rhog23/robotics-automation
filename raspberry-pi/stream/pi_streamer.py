@@ -1,54 +1,40 @@
 from picamera2 import Picamera2
-import socket
-import struct
-import base64
-import time
+from flask import Flask, Response
 import cv2
 import numpy as np
 
+app = Flask(__name__)
+
+# Initialize PiCamera2
 picam2 = Picamera2()
-config = picam2.create_video_configuration(
-    main={"size": (640, 480), "format": "RGB888"}
-)
+config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 print("Camera started successfully")
 
-time.sleep(2)
-
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-host_ip = "0.0.0.0"
-port = 9999
-socket_address = (host_ip, port)
-
-try:
-    server_socket.bind(socket_address)
-    server_socket.listen(5)
-    print(f"Streaming server started on {host_ip}:{port}")
-
-    client_socket, addr = server_socket.accept()
-    print(f"Connected to {addr}")
-
+def generate_frames():
     while True:
+        # Capture frame
         frame = picam2.capture_array()
         if frame is None or frame.size == 0:
             print("Error: Invalid frame captured")
             break
+        
+        # Encode as JPEG
+        ret, buffer = cv2.imencode(".jpg", frame)
+        if not ret:
+            print("Error: Failed to encode frame")
+            continue
+        
+        frame_bytes = buffer.tobytes()
+        # Yield MJPEG multipart response
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-        # raw_data = frame.tobytes()
-        encoded_data = base64.b64encode(frame.data)
-        # message_size = struct.pack("L", len(encoded_data))
+@app.route("/video")
+def video_feed():
+    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
-        # client_socket.sendall(message_size + encoded_data)
-        client_socket.sendall(encoded_data)
-
-        print("Frame sent successfully")
-        time.sleep(5)
-
-except Exception as e:
-    print(f"Error occurred: {e}")
-finally:
-    print("Cleaning up...")
-    picam2.stop()
-    client_socket.close()
-    server_socket.close()
+if __name__ == "__main__":
+    # Run on all interfaces, port 5000
+    app.run(host="0.0.0.0", port=5000, threaded=True)

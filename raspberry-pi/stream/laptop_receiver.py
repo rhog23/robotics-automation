@@ -1,68 +1,41 @@
 import cv2
 import gradio as gr
-import socket
-import struct
-import base64
 import numpy as np
-from io import BytesIO
-from PIL import Image
+import urllib.request
 
 
 def process_frame(frame):
-    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+    gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)  # Input is RGB from MJPEG decode
     _, segmented = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return cv2.cvtColor(segmented, cv2.COLOR_GRAY2RGB)
 
 
 def video_stream():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    pi_ip = "192.168.137.110"
-    port = 9999
-    client_socket.connect((pi_ip, port))
+    # URL of the Pi's Flask video feed
+    url = "http://192.168.137.110:5000/video"
+    stream = urllib.request.urlopen(url)
+    bytes_data = b""
 
-    try:
-        while True:
-            # packed_msg_size = b""
-            # while len(packed_msg_size) < 4:
-            #     packet = client_socket.recv(4 - len(packed_msg_size))
-            #     if not packet:
-            #         print("Connection closed by server")
-            #         break
-            #     packed_msg_size += packet
-            # msg_size = struct.unpack("L", packed_msg_size)[0]
-            # print(f"Expected encoded frame size: {msg_size}")
+    while True:
+        # Read the stream in chunks
+        bytes_data += stream.read(1024)
 
-            # encoded_data = b""
-            # while len(encoded_data) < msg_size:
-            #     remaining = msg_size - len(encoded_data)
-            #     packet = client_socket.recv(min(16384, remaining))
-            #     if not packet:
-            #         print("Incomplete frame received")
-            #         break
-            #     encoded_data += packet
+        # Find JPEG frame boundaries
+        start = bytes_data.find(b"\xff\xd8")  # JPEG start
+        end = bytes_data.find(b"\xff\xd9")  # JPEG end
+        if start != -1 and end != -1:
+            jpg = bytes_data[start : end + 2]
+            bytes_data = bytes_data[end + 2 :]  # Remove processed frame
 
-            # if len(encoded_data) != msg_size:
-            #     print(f"Error: Received {len(encoded_data)} bytes, expected {msg_size}")
-            #     break
+            # Decode JPEG to RGB frame
+            frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
+            if frame is None:
+                print("Error: Failed to decode frame")
+                continue
 
-            # print(f"Received encoded frame, size: {len(encoded_data)}, first 10 bytes: {encoded_data[:10]}")
-            packet = client_socket.recv(4096)
-
-            print(base64.b64decode(packet))
-            # frame = np.frombuffer(raw_data, dtype=np.uint8)
-            # print(f"Decoded raw size: {len(raw_data)}")
-
-            # frame = np.fromstring(raw_data, dtype=np.uint8)
-            # frame = cv2.imdecode(frame, cv2.IMREAD_ANYCOLOR)
-            # frame = Image.open(raw_data)
-            # print(f"Frame decoded, shape: {frame.shape}")
-            # segmented_frame = process_frame(frame)
-            # yield segmented_frame
-
-    except Exception as e:
-        print(f"Stream error: {e}")
-    finally:
-        client_socket.close()
+            # Process for segmentation
+            segmented_frame = process_frame(frame)
+            yield segmented_frame
 
 
 interface = gr.Interface(
