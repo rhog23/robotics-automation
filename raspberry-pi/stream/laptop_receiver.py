@@ -5,12 +5,10 @@ import struct
 import base64
 import numpy as np
 
-
 def process_frame(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     _, segmented = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return cv2.cvtColor(segmented, cv2.COLOR_GRAY2RGB)
-
 
 def video_stream():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,7 +18,6 @@ def video_stream():
 
     try:
         while True:
-            # Receive message size (4 bytes)
             packed_msg_size = b""
             while len(packed_msg_size) < 4:
                 packet = client_socket.recv(4 - len(packed_msg_size))
@@ -31,7 +28,6 @@ def video_stream():
             msg_size = struct.unpack("L", packed_msg_size)[0]
             print(f"Expected encoded frame size: {msg_size}")
 
-            # Receive encoded frame data
             encoded_data = b""
             while len(encoded_data) < msg_size:
                 remaining = msg_size - len(encoded_data)
@@ -45,8 +41,14 @@ def video_stream():
                 print(f"Error: Received {len(encoded_data)} bytes, expected {msg_size}")
                 break
 
-            # Decode base64 and reconstruct frame
+            print(f"Received encoded frame, size: {len(encoded_data)}, first 10 bytes: {encoded_data[:10]}")
             raw_data = base64.b64decode(encoded_data)
+            print(f"Decoded raw size: {len(raw_data)}")
+
+            if len(raw_data) != 921600:
+                print(f"Error: Expected raw size 921600, got {len(raw_data)}")
+                break
+
             frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(480, 640, 3)
             print(f"Frame decoded, shape: {frame.shape}")
             segmented_frame = process_frame(frame)
@@ -57,13 +59,12 @@ def video_stream():
     finally:
         client_socket.close()
 
-
 interface = gr.Interface(
     fn=video_stream,
     inputs=None,
     outputs=gr.Image(streaming=True),
     live=True,
-    title="Raspberry Pi 4 Otsu Segmentation",
+    title="Raspberry Pi 4 Otsu Segmentation"
 )
 
 interface.launch(server_name="0.0.0.0", server_port=7860)
