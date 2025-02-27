@@ -29,6 +29,7 @@ try:
 
     while True:
         frame = picam2.capture_array()
+        print(type(frame))
         if frame is None or frame.size == 0:
             print("Error: Invalid frame captured")
             break
