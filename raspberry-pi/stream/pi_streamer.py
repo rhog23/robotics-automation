@@ -34,7 +34,7 @@ try:
             print("Error: Invalid frame captured")
             break
 
-        cv2.imshow("result", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+        cv2.imshow("result", frame)
 
         # raw_data = frame.tobytes()
         encoded_data = base64.b64encode(frame)
