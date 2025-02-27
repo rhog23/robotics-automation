@@ -16,7 +16,7 @@ def process_frame(frame):
 # Stream receiver function
 def video_stream():
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    pi_ip = "192.168.1.100"  # Replace with your Pi's IP address
+    pi_ip = "192.168.137.110"  # Replace with your Pi's IP address
     port = 9999
     client_socket.connect((pi_ip, port))
     data = b""
