@@ -1,23 +1,23 @@
 import cv2
+from picamera2 import Picamera2
 
-cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
-if not cap.isOpened():
-    print("Error: Could not open camera")
-    exit(1)
+picam2 = Picamera2()
+picam2.configure(
+    picam2.create_preview_configuration(main={"format": "XRGB8888", "size": (640, 480)})
+)
+picam2.start()
 
-print("Camera opened successfully")
+try:
+    while True:
+        # Capture a frame from the camera
+        frame = picam2.capture_array()
 
-# Set resolution (optional, to test compatibility)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        # Display the frame using OpenCV
+        cv2.imshow("Camera Preview", frame)
 
-for i in range(10):
-    ret, frame = cap.read()
-    if not ret:
-        print(f"Error: Failed to capture frame at attempt {i}")
-        break
-    print(f"Frame {i} captured, shape: {frame.shape}")
-    if i == 0:  # Save the first frame for inspection
-        cv2.imwrite("test_frame.jpg", frame)
-
-cap.release()
+        # Break the loop if 'q' is pressed
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+finally:
+    picam2.stop()
+    cv2.destroyAllWindows()
