@@ -4,8 +4,9 @@ import pickle
 import struct
 
 # Use libcamera with raw YUV420
-cmd = "libcamera-vid -t 0 --inline --nopreview -o - --width 640 --height 480 --codec yuv420"
-cap = cv2.VideoCapture(cmd, cv2.CAP_GSTREAMER)
+# cmd = "libcamera-vid -t 0 --inline --nopreview -o - --width 640 --height 480 --codec yuv420"
+# cap = cv2.VideoCapture(cmd, cv2.CAP_GSTREAMER)
+cap = cv2.VideoCapture(0)
 
 if not cap.isOpened():
     print("Error: Could not open camera with libcamera")
