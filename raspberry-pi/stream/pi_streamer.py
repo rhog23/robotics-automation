@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 picam2 = Picamera2()
 config = picam2.create_video_configuration(
-    main={"size": (320, 240), "format": "RGB888"}
+    main={"size": (640, 480), "format": "RGB888"}
 )  # Lower resolution
 picam2.configure(config)
 picam2.start()
