@@ -3,6 +3,7 @@ import socket
 import struct
 import base64
 import time
+import cv2
 
 picam2 = Picamera2()
 config = picam2.create_video_configuration(
@@ -29,10 +30,11 @@ try:
 
     while True:
         frame = picam2.capture_array()
-        print(type(frame))
         if frame is None or frame.size == 0:
             print("Error: Invalid frame captured")
             break
+
+        cv2.imshow("result", cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
         # raw_data = frame.tobytes()
         encoded_data = base64.b64encode(frame)

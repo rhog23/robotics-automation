@@ -47,9 +47,9 @@ def video_stream():
 
             # print(f"Received encoded frame, size: {len(encoded_data)}, first 10 bytes: {encoded_data[:10]}")
             packet = client_socket.recv(1024)
-            raw_data = Image.frombuffer(
-                mode="RGB", size=(480, 640), data=packet
-            )
+            # raw_data = Image.frombuffer(
+            #     mode="RGB", size=(480, 640), data=packet
+            # )
             # print(raw_data)
             # frame = np.frombuffer(raw_data, dtype=np.uint8)
             # print(f"Decoded raw size: {len(raw_data)}")
