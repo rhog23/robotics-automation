@@ -1,18 +1,18 @@
-import cv2
+from picamera2 import Picamera2
 import socket
 import pickle
 import struct
+import time
 
-# Use libcamera with raw YUV420
-# cmd = "libcamera-vid -t 0 --inline --nopreview -o - --width 640 --height 480 --codec yuv420"
-# cap = cv2.VideoCapture(cmd, cv2.CAP_GSTREAMER)
-cap = cv2.VideoCapture(0)
+# Initialize PiCamera2
+picam2 = Picamera2()
+config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
+picam2.configure(config)
+picam2.start()
+print("Camera started successfully")
 
-if not cap.isOpened():
-    print("Error: Could not open camera with libcamera")
-    exit(1)
-
-print("Camera opened successfully")
+# Give the camera a moment to warm up
+time.sleep(2)  # Adjust if needed
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = "0.0.0.0"
@@ -28,21 +28,23 @@ try:
     print(f"Connected to {addr}")
 
     while True:
-        ret, frame = cap.read()
-        if not ret:
+        # Capture frame as a NumPy array
+        frame = picam2.capture_array()
+        if frame is None:
             print("Error: Failed to capture frame")
             break
-
-        print("Frame captured, sending...")
+        
+        print("Frame captured, shape:", frame.shape)
         data = pickle.dumps(frame)
         message_size = struct.pack("L", len(data))
         client_socket.sendall(message_size + data)
         print("Frame sent")
+        time.sleep(0.01)  # Small delay for stability
 
 except Exception as e:
     print(f"Error occurred: {e}")
 finally:
     print("Cleaning up...")
-    cap.release()
+    picam2.stop()
     client_socket.close()
     server_socket.close()
