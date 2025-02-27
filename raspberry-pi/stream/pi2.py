@@ -1,22 +1,22 @@
-from flask import Flask, Response
 from picamera2 import Picamera2
+from flask import Flask, Response
 import cv2
 import numpy as np
 
 app = Flask(__name__)
 
 # Initialize PiCamera2
-camera = Picamera2()
-config = camera.create_video_configuration(
+picam2 = Picamera2()
+config = picam2.create_video_configuration(
     main={"size": (640, 480), "format": "RGB888"}
 )
-camera.configure(config)
-camera.start()
+picam2.configure(config)
+picam2.start()
 
 
 def generate_frames():
     while True:
-        frame = camera.capture_array()
+        frame = picam2.capture_array()
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # Convert from BGR to RGB
         ret, buffer = cv2.imencode(".jpg", frame)
         frame_bytes = buffer.tobytes()
