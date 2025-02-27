@@ -1,6 +1,7 @@
 import cv2
 import gradio as gr
 import subprocess
+import numpy as np
 
 
 def process_frame(frame):
