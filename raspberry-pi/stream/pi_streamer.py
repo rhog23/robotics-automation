@@ -5,36 +5,41 @@ import numpy as np
 
 app = Flask(__name__)
 
-# Initialize PiCamera2
 picam2 = Picamera2()
-config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
+config = picam2.create_video_configuration(
+    main={"size": (320, 240), "format": "RGB888"}
+)  # Lower resolution
 picam2.configure(config)
 picam2.start()
 print("Camera started successfully")
 
+
 def generate_frames():
     while True:
-        # Capture frame
         frame = picam2.capture_array()
         if frame is None or frame.size == 0:
             print("Error: Invalid frame captured")
             break
-        
-        # Encode as JPEG
-        ret, buffer = cv2.imencode(".jpg", frame)
+
+        # Encode with lower quality for smaller size
+        ret, buffer = cv2.imencode(
+            ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70]
+        )  # 70% quality
         if not ret:
-            print("Error: Failed to encode frame")
             continue
-        
+
         frame_bytes = buffer.tobytes()
-        # Yield MJPEG multipart response
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        yield (
+            b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+        )
+
 
 @app.route("/video")
 def video_feed():
-    return Response(generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(
+        generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
+    )
+
 
 if __name__ == "__main__":
-    # Run on all interfaces, port 5000
     app.run(host="0.0.0.0", port=5000, threaded=True)
