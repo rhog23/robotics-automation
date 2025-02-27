@@ -1,9 +1,10 @@
 from picamera2 import Picamera2
 import socket
-import pickle
 import struct
+import base64
 import time
 
+# Initialize PiCamera2
 picam2 = Picamera2()
 config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
 picam2.configure(config)
@@ -31,13 +32,16 @@ try:
             print("Error: Invalid frame captured")
             break
         
-        data = pickle.dumps(frame)
-        message_size = struct.pack("L", len(data))
-        print(f"Sending frame, size: {len(data)} bytes, first 10 bytes: {data[:10]}")
-        
-        client_socket.sendall(message_size + data)
+        # Convert frame to raw bytes and encode to base64
+        raw_data = frame.tobytes()
+        encoded_data = base64.b64encode(raw_data)
+        message_size = struct.pack("L", len(encoded_data))
+        print(f"Sending frame, raw size: {len(raw_data)}, encoded size: {len(encoded_data)} bytes")
+
+        # Send size followed by encoded data
+        client_socket.sendall(message_size + encoded_data)
         print("Frame sent successfully")
-        time.sleep(0.1)
+        time.sleep(0.1)  # 10 FPS to keep it manageable
 
 except Exception as e:
     print(f"Error occurred: {e}")

@@ -1,8 +1,8 @@
 import cv2
 import gradio as gr
 import socket
-import pickle
 import struct
+import base64
 import numpy as np
 
 
@@ -17,52 +17,40 @@ def video_stream():
     pi_ip = "192.168.137.110"
     port = 9999
     client_socket.connect((pi_ip, port))
-    data = b""
 
     try:
         while True:
-            # Receive message size
-            while len(data) < 4:  # Hardcode 4 bytes for "L"
-                packet = client_socket.recv(4 - len(data))
+            # Receive message size (4 bytes)
+            packed_msg_size = b""
+            while len(packed_msg_size) < 4:
+                packet = client_socket.recv(4 - len(packed_msg_size))
                 if not packet:
                     print("Connection closed by server")
                     break
-                data += packet
-            msg_size = struct.unpack("L", data[:4])[0]
-            data = data[4:]
-            print(f"Expected frame size: {msg_size}")
+                packed_msg_size += packet
+            msg_size = struct.unpack("L", packed_msg_size)[0]
+            print(f"Expected encoded frame size: {msg_size}")
 
-            # Receive frame data
-            while len(data) < msg_size:
-                remaining = msg_size - len(data)
+            # Receive encoded frame data
+            encoded_data = b""
+            while len(encoded_data) < msg_size:
+                remaining = msg_size - len(encoded_data)
                 packet = client_socket.recv(min(16384, remaining))
                 if not packet:
                     print("Incomplete frame received")
                     break
-                data += packet
+                encoded_data += packet
 
-            if len(data) != msg_size:
-                print(f"Error: Received {len(data)} bytes, expected {msg_size}")
+            if len(encoded_data) != msg_size:
+                print(f"Error: Received {len(encoded_data)} bytes, expected {msg_size}")
                 break
 
-            frame_data = data[:msg_size]
-            data = data[msg_size:]
-            print(
-                f"Received frame, size: {len(frame_data)}, first 10 bytes: {frame_data[:10]}"
-            )
-
-            try:
-                frame = pickle.loads(frame_data)
-                print("Frame deserialized, shape:", frame.shape)
-                segmented_frame = process_frame(frame)
-                yield segmented_frame
-            except pickle.UnpicklingError as e:
-                print(f"Pickle error: {e}, data length: {len(frame_data)}")
-                break
-
-            if data:
-                print(f"Warning: Leftover data: {len(data)} bytes")
-                data = b""
+            # Decode base64 and reconstruct frame
+            raw_data = base64.b64decode(encoded_data)
+            frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(480, 640, 3)
+            print(f"Frame decoded, shape: {frame.shape}")
+            segmented_frame = process_frame(frame)
+            yield segmented_frame
 
     except Exception as e:
         print(f"Stream error: {e}")
