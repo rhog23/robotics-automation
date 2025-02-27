@@ -4,15 +4,13 @@ import pickle
 import struct
 import time
 
-# Initialize PiCamera2
 picam2 = Picamera2()
 config = picam2.create_video_configuration(main={"size": (640, 480), "format": "RGB888"})
 picam2.configure(config)
 picam2.start()
 print("Camera started successfully")
 
-# Give the camera a moment to warm up
-time.sleep(2)  # Adjust if needed
+time.sleep(2)
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = "0.0.0.0"
@@ -28,18 +26,18 @@ try:
     print(f"Connected to {addr}")
 
     while True:
-        # Capture frame as a NumPy array
         frame = picam2.capture_array()
-        if frame is None:
-            print("Error: Failed to capture frame")
+        if frame is None or frame.size == 0:
+            print("Error: Invalid frame captured")
             break
         
-        print("Frame captured, shape:", frame.shape)
         data = pickle.dumps(frame)
         message_size = struct.pack("L", len(data))
+        print(f"Sending frame, size: {len(data)} bytes, first 10 bytes: {data[:10]}")
+        
         client_socket.sendall(message_size + data)
-        print("Frame sent")
-        time.sleep(0.01)  # Small delay for stability
+        print("Frame sent successfully")
+        time.sleep(0.1)
 
 except Exception as e:
     print(f"Error occurred: {e}")
