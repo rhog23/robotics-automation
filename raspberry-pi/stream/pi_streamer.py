@@ -3,15 +3,16 @@ import socket
 import pickle
 import struct
 
-# Initialize the camera
-cap = cv2.VideoCapture(0)
+# Use libcamera with raw YUV420
+cmd = "libcamera-vid -t 0 --inline --nopreview -o - --width 640 --height 480 --codec yuv420"
+cap = cv2.VideoCapture(cmd, cv2.CAP_GSTREAMER)
+
 if not cap.isOpened():
-    print("Error: Could not open camera")
+    print("Error: Could not open camera with libcamera")
     exit(1)
 
 print("Camera opened successfully")
 
-# Set up socket server
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 host_ip = "0.0.0.0"
 port = 9999
@@ -22,11 +23,9 @@ try:
     server_socket.listen(5)
     print(f"Streaming server started on {host_ip}:{port}")
 
-    # Accept a client connection
     client_socket, addr = server_socket.accept()
     print(f"Connected to {addr}")
 
-    # Stream frames
     while True:
         ret, frame = cap.read()
         if not ret:
