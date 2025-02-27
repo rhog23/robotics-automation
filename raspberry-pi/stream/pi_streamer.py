@@ -36,7 +36,7 @@ try:
             break
 
         # raw_data = frame.tobytes()
-        encoded_data = np.array(cv2.imencode(".png", frame.data))
+        encoded_data = base64.b64encode(frame.data)
         byte_encode = encoded_data.tobytes()
         # message_size = struct.pack("L", len(encoded_data))
 
