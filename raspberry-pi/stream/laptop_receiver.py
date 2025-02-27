@@ -46,11 +46,12 @@ def video_stream():
             #     break
 
             # print(f"Received encoded frame, size: {len(encoded_data)}, first 10 bytes: {encoded_data[:10]}")
-            packet = client_socket.recv(1024)
+            packet = client_socket.recv(4096)
+
             # raw_data = Image.frombuffer(
             #     mode="RGB", size=(480, 640), data=packet
             # )
-            # print(raw_data)
+            print(base64.b64decode(packet))
             # frame = np.frombuffer(raw_data, dtype=np.uint8)
             # print(f"Decoded raw size: {len(raw_data)}")
 

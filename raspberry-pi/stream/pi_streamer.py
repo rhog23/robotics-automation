@@ -34,10 +34,8 @@ try:
             print("Error: Invalid frame captured")
             break
 
-        cv2.imshow("result", frame)
-
         # raw_data = frame.tobytes()
-        encoded_data = base64.b64encode(frame)
+        encoded_data = cv2.imencode(frame.data)
         # message_size = struct.pack("L", len(encoded_data))
 
         # client_socket.sendall(message_size + encoded_data)
