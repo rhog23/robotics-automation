@@ -37,11 +37,10 @@ try:
 
         # raw_data = frame.tobytes()
         encoded_data = base64.b64encode(frame.data)
-        byte_encode = encoded_data.tobytes()
         # message_size = struct.pack("L", len(encoded_data))
 
         # client_socket.sendall(message_size + encoded_data)
-        client_socket.sendall(byte_encode)
+        client_socket.sendall(encoded_data)
 
         print("Frame sent successfully")
         time.sleep(0.1)
