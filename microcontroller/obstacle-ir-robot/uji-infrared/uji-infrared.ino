@@ -1,7 +1,7 @@
-#define IR_FRONT_LEFT  33  
-#define IR_FRONT_RIGHT 32  
-#define IR_BACK_LEFT   35  
-#define IR_BACK_RIGHT  34
+#define IR_FRONT_LEFT  35  
+#define IR_FRONT_RIGHT 21  
+#define IR_BACK_LEFT   13  
+#define IR_BACK_RIGHT  15
 
 
 void setup() {

@@ -1,0 +1,4 @@
+opencv-python
+twilio
+gradio>=5.0
+gradio-webrtc
