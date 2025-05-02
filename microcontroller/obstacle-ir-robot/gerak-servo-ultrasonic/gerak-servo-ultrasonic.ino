@@ -2,7 +2,7 @@
 
 #define TRIG 5  
 #define ECHO 18  
-#define SERVO_PIN 12 
+#define SERVO_PIN 19
 
 Servo myServo;  // Same object name
 
