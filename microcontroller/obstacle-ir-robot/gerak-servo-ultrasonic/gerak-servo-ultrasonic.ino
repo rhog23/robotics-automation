@@ -1,7 +1,7 @@
 #include <ESP32Servo.h>  // Use ESP32Servo instead of Servo.h
 
-#define TRIG 5  
-#define ECHO 18  
+#define TRIG 16  
+#define ECHO 17  
 #define SERVO_PIN 19
 
 Servo myServo;  // Same object name
