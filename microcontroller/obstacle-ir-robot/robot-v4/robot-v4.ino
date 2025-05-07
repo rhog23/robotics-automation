@@ -39,8 +39,8 @@ Servo myServo;
 #define SENSOR_TIMEOUT    999
 #define PWM_FREQ          5000
 #define PWM_RESOLUTION    8
-#define TURN_DURATION     400         // Reduced from 450
-#define REVERSE_DURATION  400         // Reduced from 450
+#define TURN_DURATION     500         // Reduced from 450
+#define REVERSE_DURATION  500         // Reduced from 450
 
 // Untuk menghindari busy waiting
 unsigned long lastSensorCheck = 0;
@@ -56,6 +56,20 @@ bool isMotorRunning = false;
 bool isOnSurface = true;
 unsigned long lastObstacleTime = 0;
 const unsigned long OBSTACLE_IGNORE_TIME = 500; // Prevent oscillation
+
+// Function prototypes - to avoid "not declared in this scope" errors
+void setMotorSpeed(int leftSpeed, int rightSpeed);
+void stopMotors();
+void moveForward(bool smooth = true);
+void moveBackward();
+void turnLeft();
+void turnRight();
+void gradualForward(int duration);
+long getDistance();
+long getStableDistance();
+bool checkOnSurface();
+void antiFallAvoidance();
+void obstacleAvoidance();
 
 // ==========================
 // SETUP
@@ -88,19 +102,17 @@ void setup() {
 
   randomSeed(analogRead(34));
   
-  // Pastikan robot dimulai dalam keadaan berhenti
-  stopMotors();
-  delay(500); // Reduced from 1000ms
+  // Set timer for sensor checks
+  lastSensorCheck = millis();
   
   Serial.println("Robot ready!");
   
-  // Berikan delay tambahan sebelum robot mulai bergerak
-  delay(1000); // Reduced from 2000ms
+  // Short delay before starting
+  delay(500);
   
-  // Inisialisasi timer pertama kali
-  lastSensorCheck = millis();
-  
+  // Start moving immediately after initialization
   Serial.println("Robot starting movement!");
+  moveForward(false);
 }
 
 // ==========================
@@ -125,7 +137,7 @@ void stopMotors() {
   Serial.println("Motors stopped");
 }
 
-void moveForward(bool smooth = true) {
+void moveForward(bool smooth) {
   digitalWrite(MOTOR_LEFT_FWD, HIGH);
   digitalWrite(MOTOR_LEFT_BWD, LOW);
   digitalWrite(MOTOR_RIGHT_FWD, HIGH);
@@ -220,8 +232,9 @@ bool checkOnSurface() {
   // LOW = sensor mendeteksi permukaan (normal, aman)
   // HIGH = sensor tidak mendeteksi permukaan (tepi atau diangkat)
   
-  // Jika semua sensor HIGH, robot kemungkinan diangkat
-  if (fl == HIGH && fr == HIGH && bl == HIGH && br == HIGH) {
+  // Jika ada sensor yang HIGH, berarti ada tepi atau robot diangkat
+  // Modifikasi: Jika satu saja sensor HIGH, return false (tidak aman)
+  if (fl == HIGH || fr == HIGH || bl == HIGH || br == HIGH) {
     return false;
   }
   return true;
@@ -233,6 +246,7 @@ void antiFallAvoidance() {
   int bl = digitalRead(IR_BACK_LEFT);
   int br = digitalRead(IR_BACK_RIGHT);
 
+  // Stop motors immediately when any IR sensor is activated
   stopMotors();
 
   // Jika semua sensor HIGH, robot diangkat
@@ -242,41 +256,31 @@ void antiFallAvoidance() {
     return;
   }
 
+  // If this point is reached, at least one sensor detected an edge but not all
+  // We can implement recovery behavior here if needed
   if (fl == HIGH && fr == HIGH) {
-    Serial.println("⚠ Tepi depan ganda! Mundur & belok kanan");
-    moveBackward(); delay(400); // Reduced from 500
-    turnRight(); delay(TURN_DURATION);
-    moveForward(false);
+    Serial.println("⚠ Tepi depan ganda! STOP");
+    // Just stop and don't try to recover
   }
   else if (bl == HIGH && br == HIGH) {
-    Serial.println("⚠ Tepi belakang ganda! Maju & belok kiri");
-    moveForward(false); delay(400); // Reduced from 500
-    turnLeft(); delay(TURN_DURATION);
-    moveForward(false);
+    Serial.println("⚠ Tepi belakang ganda! STOP");
+    // Just stop and don't try to recover
   }
   else if (fl == HIGH) {
-    Serial.println("⚠ Tepi depan kiri! Mundur & belok kanan");
-    moveBackward(); delay(300); // Reduced from 400
-    turnRight(); delay(350);
-    moveForward(false);
+    Serial.println("⚠ Tepi depan kiri! STOP");
+    // Just stop and don't try to recover
   }
   else if (fr == HIGH) {
-    Serial.println("⚠ Tepi depan kanan! Mundur & belok kiri");
-    moveBackward(); delay(300); // Reduced from 400
-    turnLeft(); delay(350);
-    moveForward(false);
+    Serial.println("⚠ Tepi depan kanan! STOP");
+    // Just stop and don't try to recover
   }
   else if (bl == HIGH) {
-    Serial.println("⚠ Tepi belakang kiri! Maju & belok kanan");
-    moveForward(false); delay(300); // Reduced from 400
-    turnRight(); delay(350);
-    moveForward(false);
+    Serial.println("⚠ Tepi belakang kiri! STOP");
+    // Just stop and don't try to recover
   }
   else if (br == HIGH) {
-    Serial.println("⚠ Tepi belakang kanan! Maju & belok kiri");
-    moveForward(false); delay(300); // Reduced from 400
-    turnLeft(); delay(350);
-    moveForward(false);
+    Serial.println("⚠ Tepi belakang kanan! STOP");
+    // Just stop and don't try to recover
   }
 }
 
@@ -349,22 +353,26 @@ void loop() {
       Serial.print(" BR: "); Serial.println(br);
     }
     
-    // Jika SEMUA sensor HIGH, robot diangkat
-    if (fl == HIGH && fr == HIGH && bl == HIGH && br == HIGH) {
-      Serial.println("⚠⚠⚠ ROBOT DIANGKAT! EMERGENCY STOP! ⚠⚠⚠");
+    // MODIFIED LOGIC: If ANY sensor is HIGH, stop the motors
+    if (fl == HIGH || fr == HIGH || bl == HIGH || br == HIGH) {
+      // If all sensors are HIGH, it's likely the robot is lifted
+      if (fl == HIGH && fr == HIGH && bl == HIGH && br == HIGH) {
+        Serial.println("⚠⚠⚠ ROBOT DIANGKAT! EMERGENCY STOP! ⚠⚠⚠");
+      } else {
+        Serial.println("‼ Deteksi tepi – EMERGENCY STOP!");
+      }
+      
+      // Stop motors immediately regardless of which scenario
       stopMotors();
       delay(100);
       return;
     }
     
-    // Jika ada sensor yang HIGH (mendeteksi tepi)
-    if (fl == HIGH || fr == HIGH || bl == HIGH || br == HIGH) {
-      Serial.println("‼ Deteksi tepi – STOP!");
-      antiFallAvoidance();
-      return;
-    }
-
-    // Only check distance if we're not in recovery mode from a recent obstacle
+    // MODIFIED: Directly move forward after confirming no ledge is detected
+    // Instead of checking if we're not moving, ALWAYS try to move forward
+    // if we're on a safe surface (no ledge detected)
+    
+    // Only check for obstacles if we're not in recovery mode from a recent obstacle
     if (millis() - lastObstacleTime >= OBSTACLE_IGNORE_TIME) {
       long frontDist = getDistance();
       
@@ -374,15 +382,25 @@ void loop() {
       }
 
       if (frontDist >= SENSOR_TIMEOUT) {
-        // Handle sensor timeout more gracefully - keep moving if already moving
+        // Handle sensor timeout - move forward regardless of timeout
         if (!isMotorRunning) {
-          Serial.println("⚠ Sensor timeout - continuing current action");
+          Serial.println("⚠ Sensor timeout - moving forward anyway");
+          moveForward();
         }
       } else if (frontDist <= SAFE_DISTANCE_CM) {
+        // Obstacle detected - handle it
         obstacleAvoidance();
-      } else if (!isMotorRunning) {
-        // Only call moveForward if we're not already moving
-        Serial.println("✅ Jalan maju");
+      } else {
+        // No obstacle detected - always move forward if not already moving
+        if (!isMotorRunning) {
+          Serial.println("✅ Jalan maju");
+          moveForward();
+        }
+      }
+    } else {
+      // We're in recovery mode, but still move forward if not already moving
+      if (!isMotorRunning) {
+        Serial.println("✅ Jalan maju setelah recovery");
         moveForward();
       }
     }
