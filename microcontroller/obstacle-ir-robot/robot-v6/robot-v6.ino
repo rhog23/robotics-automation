@@ -33,8 +33,8 @@ Servo myServo;
 // KONSTANTA SISTEM
 // ==========================
 #define MAX_PWM_DUTY      255
-#define SPEED_FORWARD     190
-#define SPEED_REVERSE     190
+#define SPEED_FORWARD     210
+#define SPEED_REVERSE     210
 #define SAFE_DISTANCE_CM  15
 #define SENSOR_TIMEOUT    999
 #define PWM_FREQ          5000
@@ -287,30 +287,28 @@ bool checkLedgeDetected() {
   int bl = digitalRead(IR_BACK_LEFT);
   int br = digitalRead(IR_BACK_RIGHT);
 
-  // When moving backward, we primarily care about back sensors
-  if (isMovingBackward) {
-    if (bl == HIGH || br == HIGH) {
+  // PENTING: Untuk sensor IR ini:
+  // LOW = sensor mendeteksi permukaan (normal, aman)
+  // HIGH = sensor tidak mendeteksi permukaan (tepi atau diangkat)
+
+  // Any sensor being HIGH means danger - stop immediately
+  if (fl == HIGH || fr == HIGH || bl == HIGH || br == HIGH) {
+    // Log specific detection for debugging
+    if (isMovingBackward && (bl == HIGH || br == HIGH)) {
       Serial.println("⚠ Ledge detected at back during backward movement!");
-      return true;
-    }
-  } 
-  // When moving forward, we primarily care about front sensors
-  else {
-    if (fl == HIGH || fr == HIGH) {
+    } 
+    else if (!isMovingBackward && (fl == HIGH || fr == HIGH)) {
       Serial.println("⚠ Ledge detected at front during forward movement!");
-      return true;
     }
+    else {
+      Serial.println("⚠ Ledge detected - immediate stop required!");
+    }
+    return true;
   }
 
   // Always check for all sensors being HIGH (robot lifted)
   if (fl == HIGH && fr == HIGH && bl == HIGH && br == HIGH) {
     Serial.println("⚠ All sensors HIGH - robot likely lifted!");
-    return true;
-  }
-
-  // For general safety, detect any sensor being HIGH
-  if (fl == HIGH || fr == HIGH || bl == HIGH || br == HIGH) {
-    Serial.println("⚠ At least one sensor detected a ledge!");
     return true;
   }
 
