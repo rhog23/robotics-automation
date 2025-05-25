@@ -88,9 +88,9 @@ long getDistance() {
 }
 
 long getStableDistance() {
-  // Take only 2 readings and average for faster response
+  // cek jarak
   long dist = getDistance();
-  return dist;  // Return single reading for faster response
+  return dist; 
 }
 
 // ==========================
@@ -100,7 +100,7 @@ void setMotorSpeed(int leftSpeed, int rightSpeed) {
   ledcWrite(ENABLE_LEFT_PIN, constrain(leftSpeed, 0, MAX_PWM_DUTY));
   ledcWrite(ENABLE_RIGHT_PIN, constrain(rightSpeed, 0, MAX_PWM_DUTY));
   
-  // Track if motors are running
+  // cek kecepatan motor
   isMotorRunning = (leftSpeed > 0 || rightSpeed > 0);
   currentSpeed = max(leftSpeed, rightSpeed);
 }
@@ -181,14 +181,14 @@ void turnRight() {
   }
 }
 
-// Improved gradual acceleration forward
+// Akselerasi maju
 void gradualForward(int duration) {
   digitalWrite(MOTOR_LEFT_FWD, HIGH);
   digitalWrite(MOTOR_LEFT_BWD, LOW);
   digitalWrite(MOTOR_RIGHT_FWD, HIGH);
   digitalWrite(MOTOR_RIGHT_BWD, LOW);
   
-  // Start from a lower speed for smoother acceleration
+  // Akselerasi maju lebih 'lembut'
   for (int pwm = 100; pwm <= SPEED_FORWARD; pwm += ACCEL_STEP) {
     setMotorSpeed(pwm, pwm);
     delay(ACCEL_DELAY);
@@ -453,7 +453,6 @@ void loop() {
       }
 
       if (frontDist >= SENSOR_TIMEOUT) {
-        // Handle sensor timeout more gracefully - keep moving if already moving
         if (!isMotorRunning) {
           Serial.println("⚠ Sensor timeout - continuing current action");
           moveForward(true);  // PERUBAHAN: Bergerak maju jika tidak bergerak
