@@ -3,7 +3,7 @@
 #include <ESP32Servo.h>  // Library for controlling servo motors
 #include <ArduinoJson.h> // Library for handling JSON data
 
-const char *ssid = "LAB TIF";         // WiFi network name (SSID)
+const char *ssid = "Lus";         // WiFi network name (SSID)
 const char *password = "qwertyu8888"; // WiFi network password
 
 WiFiServer server(80);       // Creates a server on port 80 for main communication
@@ -39,8 +39,8 @@ bool goBasket = false;      // Flag indicating if the robot should head to the b
 const int ACCEL_STEP = 10;  // Speed increment for smooth motor acceleration
 const int ACCEL_DELAY = 5;  // Delay (in milliseconds) between acceleration steps
 const int START_SPEED = 80; // Initial speed for motor movement
-const int MAX_SPEED = 200;  // Maximum speed for motor movement
-const int TURN_SPEED = 180; // Speed used during turns
+const int MAX_SPEED = 180;  // Maximum speed for motor movement
+const int TURN_SPEED = 170; // Speed used during turns
 
 int currentSpeedA = 0;       // Current speed of motor A
 int currentSpeedB = 0;       // Current speed of motor B
