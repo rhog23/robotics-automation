@@ -16,15 +16,15 @@ char pass[] = "qwertyu888";
 BlynkTimer timer;
 
 /* ================= PIN CONFIG ================= */
-#define AO_PIN 36  // Pin GPIO36 pada ESP32 terhubung ke pin AO (Analog Output) dari sensor MQ2
-#define DHT11_PIN 23
+#define AO_PIN 16  // Pin GPIO36 pada ESP32 terhubung ke pin AO (Analog Output) dari sensor MQ2
+#define DHT11_PIN 26
 #define PIR_PIN 25
 #define LED_PIN 27  // LED 3.3V + resistor
 #define BUZZER_PIN 17
 
 /* ================= SENSOR ================= */
 DHT dht11(DHT11_PIN, DHT11);
-int gasThreshold = 2000;  // ambang untuk sensor gas, bisa disesuaikan dengan hasil eksperimen
+int gasThreshold = 100;  // ambang untuk sensor gas, bisa disesuaikan dengan hasil eksperimen
 
 void sendToBlynk() {
   int gasValue = analogRead(AO_PIN);
