@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pi Vision Lab</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #171a21; --line: #262b35; --text: #e6e8ec; --muted: #8b93a3;
+    --accent: #4cc38a; --warn: #e5a13a; --bad: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: rgba(15,17,21,.94); backdrop-filter: blur(6px);
+           border-bottom: 1px solid var(--line); padding: 10px 16px; display: flex; flex-wrap: wrap;
+           gap: 10px 22px; align-items: center; }
+  h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--bad); display: inline-block; margin-right: 6px; }
+  .dot.ok { background: var(--accent); }
+  .stats { display: flex; flex-wrap: wrap; gap: 4px 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stats b { color: var(--text); font-weight: 600; }
+  .global { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-left: auto; }
+  button { background: #232834; color: var(--text); border: 1px solid #333a48; border-radius: 6px;
+           padding: 6px 10px; font: inherit; cursor: pointer; }
+  button:hover { background: #2b3140; }
+  button.primary { background: #1f3b2e; border-color: #2d5a45; }
+  main { padding: 14px 16px 40px; display: grid; gap: 12px;
+         grid-template-columns: repeat(auto-fill, minmax(var(--tile, 330px), 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+          display: flex; flex-direction: column; }
+  .card.off { opacity: .45; }
+  .card.off canvas { filter: grayscale(1); }
+  .head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .head .title { font-weight: 600; flex: 1; }
+  .label { color: var(--muted); padding: 5px 10px 0; min-height: 22px; font-variant-numeric: tabular-nums;
+           white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  canvas { width: 100%; height: auto; display: block; background: #000; aspect-ratio: 4 / 3; }
+  canvas.sized { aspect-ratio: auto; }
+  .ctrls { padding: 6px 10px 10px; display: grid; gap: 6px; }
+  .ctrl { display: grid; grid-template-columns: 105px 1fr 48px; gap: 8px; align-items: center; }
+  .ctrl span.v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .ctrl label { color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  select { background: #232834; color: var(--text); border: 1px solid #333a48; border-radius: 5px; padding: 3px 5px; font: inherit; }
+  .switch { accent-color: var(--accent); width: 15px; height: 15px; }
+  .inline { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .inline input[type=range] { width: 110px; }
+  @media (max-width: 520px) { .global { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1><span id="dot" class="dot"></span>Pi Vision Lab</h1>
+  <div class="stats" id="stats">connecting…</div>
+  <div class="global">
+    <span class="inline">proc width <input id="g_width" type="range" min="160" max="1280" step="16"><span id="g_width_v">–</span></span>
+    <span class="inline">JPEG q <input id="g_q" type="range" min="30" max="95" step="5"><span id="g_q_v">–</span></span>
+    <span class="inline">tile <input id="g_tile" type="range" min="200" max="700" step="10" value="330"></span>
+    <button id="allon">All on</button>
+    <button id="alloff">All off</button>
+    <button id="reset">Reset params</button>
+    <button id="snap" class="primary">Add frame to gallery</button>
+  </div>
+</header>
+<main id="grid"></main>
+
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const grid = $("#grid");
+let ws = null, params = {}, panels = {}, pendingParams = {}, sendTimer = null;
+let dispCount = 0, dispFps = 0, lastFpsT = performance.now(), lastLatency = 0;
+
+function fmt(v, step) {
+  const d = String(step).includes(".") ? String(step).split(".")[1].length : 0;
+  return Number(v).toFixed(d);
+}
+
+function queueParam(key, value) {
+  params[key] = value;
+  pendingParams[key] = value;
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => {
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "params", values: pendingParams }));
+    pendingParams = {};
+  }, 40);
+}
+
+function makeControl(c) {
+  const row = document.createElement("div");
+  row.className = "ctrl";
+  const lab = document.createElement("label");
+  lab.textContent = c.label;
+  row.appendChild(lab);
+  if (c.type === "range") {
+    const inp = Object.assign(document.createElement("input"), { type: "range", min: c.min, max: c.max, step: c.step });
+    const val = Object.assign(document.createElement("span"), { className: "v" });
+    inp.addEventListener("input", () => { val.textContent = fmt(inp.value, c.step); queueParam(c.key, Number(inp.value)); });
+    row.append(inp, val);
+    row._set = (v) => { inp.value = v; val.textContent = fmt(v, c.step); };
+  } else {
+    const s = document.createElement("select");
+    for (const o of c.options) s.appendChild(Object.assign(document.createElement("option"), { value: o, textContent: o }));
+    s.addEventListener("change", () => queueParam(c.key, s.value));
+    row.append(s, document.createElement("span"));
+    row._set = (v) => { s.value = v; };
+  }
+  row._key = c.key;
+  return row;
+}
+
+function setEnabled(id, on) {
+  const en = new Set(params.enabled);
+  on ? en.add(id) : en.delete(id);
+  // keep panel order stable
+  queueParam("enabled", Object.keys(panels).filter((k) => en.has(k)));
+  panels[id].card.classList.toggle("off", !on);
+  panels[id].toggle.checked = on;
+}
+
+function build(spec) {
+  grid.innerHTML = "";
+  panels = {};
+  for (const p of spec) {
+    const card = document.createElement("section");
+    card.className = "card";
+    const head = document.createElement("div");
+    head.className = "head";
+    const title = Object.assign(document.createElement("div"), { className: "title", textContent: p.title });
+    const toggle = Object.assign(document.createElement("input"), { type: "checkbox", className: "switch", title: "enable / disable (disabled panels are not computed)" });
+    toggle.addEventListener("change", () => setEnabled(p.id, toggle.checked));
+    head.append(title, toggle);
+    const canvas = document.createElement("canvas");
+    const label = Object.assign(document.createElement("div"), { className: "label", textContent: "" });
+    const ctrls = document.createElement("div");
+    ctrls.className = "ctrls";
+    const rows = p.controls.map(makeControl);
+    rows.forEach((r) => ctrls.appendChild(r));
+    card.append(head, canvas, label);
+    if (rows.length) card.appendChild(ctrls);
+    grid.appendChild(card);
+    panels[p.id] = { card, canvas, ctx: canvas.getContext("2d"), label, toggle, rows };
+  }
+}
+
+function applyParams(p) {
+  params = p;
+  for (const [id, pn] of Object.entries(panels)) {
+    const on = p.enabled.includes(id);
+    pn.toggle.checked = on;
+    pn.card.classList.toggle("off", !on);
+    for (const r of pn.rows) r._set(p[r._key]);
+  }
+  $("#g_width").value = p.proc_width; $("#g_width_v").textContent = p.proc_width;
+  $("#g_q").value = p.jpeg_quality; $("#g_q_v").textContent = p.jpeg_quality;
+  // keep the per-card width slider in sync
+  for (const r of panels.resize?.rows || []) if (r._key === "proc_width") r._set(p.proc_width);
+}
+
+function renderStats(h) {
+  const s = h.stats;
+  $("#dot").classList.toggle("ok", !!s.connected);
+  $("#stats").innerHTML =
+    `<span>camera in <b>${s.fps_in}</b> fps</span>` +
+    `<span>processed <b>${s.fps_proc}</b> fps</span>` +
+    `<span>shown <b>${dispFps.toFixed(1)}</b> fps</span>` +
+    `<span>decode <b>${s.decode_ms}</b> · ops <b>${s.process_ms}</b> · encode <b>${s.encode_ms}</b> ms</span>` +
+    `<span>grab→screen <b>${lastLatency.toFixed(0)}</b> ms</span>` +
+    `<span>frame <b>${s.in_kb}</b> KB</span>` +
+    `<span>dropped stale <b>${s.skipped}</b></span>`;
+}
+
+async function onFrame(buf) {
+  const dv = new DataView(buf);
+  const hlen = dv.getUint32(0, true);
+  const header = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hlen)));
+  let off = 4 + hlen;
+  const jobs = header.parts.map((part) => {
+    const blob = new Blob([new Uint8Array(buf, off, part.len)], { type: "image/jpeg" });
+    off += part.len;
+    return createImageBitmap(blob).then((bmp) => {
+      const pn = panels[part.id];
+      if (!pn) { bmp.close(); return; }
+      if (pn.canvas.width !== bmp.width || pn.canvas.height !== bmp.height) {
+        pn.canvas.width = bmp.width; pn.canvas.height = bmp.height; pn.canvas.classList.add("sized");
+      }
+      pn.ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      pn.label.textContent = part.label;
+      pn.label.title = part.label;
+    });
+  });
+  await Promise.allSettled(jobs);
+  // t_recv is laptop time; valid when this page runs on the same laptop
+  lastLatency = Date.now() - header.t_recv * 1000;
+  dispCount++;
+  const now = performance.now();
+  if (now - lastFpsT >= 1000) { dispFps = dispCount * 1000 / (now - lastFpsT); dispCount = 0; lastFpsT = now; }
+  renderStats(header);
+}
+
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => ws.send('{"type":"ready"}');
+  ws.onmessage = async (ev) => {
+    if (typeof ev.data === "string") {
+      const m = JSON.parse(ev.data);
+      if (m.type === "init") { build(m.panels); applyParams(m.params); document.title = "Pi Vision Lab"; }
+      else if (m.type === "params") applyParams(m.params);
+      return;
+    }
+    try { await onFrame(ev.data); }
+    finally { if (ws.readyState === 1) ws.send('{"type":"ready"}'); }   // ack -> server sends the NEWEST frame next
+  };
+  ws.onclose = () => { $("#dot").classList.remove("ok"); $("#stats").textContent = "disconnected – retrying…"; setTimeout(connect, 1000); };
+}
+
+$("#g_width").addEventListener("input", (e) => { $("#g_width_v").textContent = e.target.value; queueParam("proc_width", Number(e.target.value));
+  for (const r of panels.resize?.rows || []) if (r._key === "proc_width") r._set(e.target.value); });
+$("#g_q").addEventListener("input", (e) => { $("#g_q_v").textContent = e.target.value; queueParam("jpeg_quality", Number(e.target.value)); });
+$("#g_tile").addEventListener("input", (e) => document.documentElement.style.setProperty("--tile", e.target.value + "px"));
+$("#snap").addEventListener("click", () => ws && ws.send('{"type":"snapshot"}'));
+$("#reset").addEventListener("click", () => ws && ws.send('{"type":"reset"}'));
+$("#allon").addEventListener("click", () => { for (const id of Object.keys(panels)) setEnabled(id, true); });
+$("#alloff").addEventListener("click", () => { for (const id of Object.keys(panels)) if (id !== "original") setEnabled(id, false); });
+
+connect();
+</script>
+</body>
+</html>

@@ -12,7 +12,7 @@ def process_frame(frame):
 
 def video_stream():
     # URL of the Pi's Flask video feed
-    url = "http://192.168.137.110:5000/video"
+    url = "http://192.168.137.150:5000/video"
     stream = urllib.request.urlopen(url)
     bytes_data = b""
 
